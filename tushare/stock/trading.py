@@ -1,6 +1,6 @@
-# -*- coding:utf-8 -*- 
+# -*- coding:utf-8 -*-
 """
-交易数据接口 
+交易数据接口
 Created on 2014/07/31
 @author: Jimmy Liu
 @group : waditu
@@ -21,9 +21,9 @@ from tushare.util import dateu as du
 from tushare.util.formula import MA
 import os
 try:
-    from urllib.request import urlopen, Request
+    from urllib.request import urlopen, Request, ProxyHandler, build_opener
 except ImportError:
-    from urllib2 import urlopen, Request
+    from urllib2 import urlopen, Request, ProxyHandler, build_opener
 
 
 def get_hist_data(code=None, start=None, end=None,
@@ -42,7 +42,7 @@ def get_hist_data(code=None, start=None, end=None,
       ktype：string
                   数据类型，D=日k线 W=周 M=月 5=5分钟 15=15分钟 30=30分钟 60=60分钟，默认为D
       retry_count : int, 默认 3
-                 如遇网络等问题重复执行的次数 
+                 如遇网络等问题重复执行的次数
       pause : int, 默认 0
                 重复请求数据过程中暂停的秒数，防止请求间隔时间太短出现的问题
     return
@@ -60,7 +60,7 @@ def get_hist_data(code=None, start=None, end=None,
                                     symbol, ktype)
     else:
         raise TypeError('ktype input error.')
-    
+
     for _ in range(retry_count):
         time.sleep(pause)
         try:
@@ -113,8 +113,8 @@ def _parsing_dayprice_json(types=None, page=1):
     text = urlopen(request, timeout=10).read()
     if text == 'null':
         return None
-    reg = re.compile(r'\,(.*?)\:') 
-    text = reg.sub(r',"\1":', text.decode('gbk') if ct.PY3 else text) 
+    reg = re.compile(r'\,(.*?)\:')
+    text = reg.sub(r',"\1":', text.decode('gbk') if ct.PY3 else text)
     text = text.replace('"{symbol', '{"symbol')
     text = text.replace('{symbol', '{"symbol"')
     if ct.PY3:
@@ -160,7 +160,7 @@ def get_tick_data(code=None, date=None, retry_count=3, pause=0.001,
                                 date, symbol),
             ct.TICK_SRCS[1] : ct.TICK_PRICE_URL_TT % (ct.P_TYPE['http'], ct.DOMAINS['tt'], ct.PAGES['idx'],
                                            symbol, datestr),
-            ct.TICK_SRCS[2] : ct.TICK_PRICE_URL_NT % (ct.P_TYPE['http'], ct.DOMAINS['163'], date[0:4], 
+            ct.TICK_SRCS[2] : ct.TICK_PRICE_URL_NT % (ct.P_TYPE['http'], ct.DOMAINS['163'], date[0:4],
                                          datestr, symbol_dgt)
              }
     for _ in range(retry_count):
@@ -172,11 +172,11 @@ def get_tick_data(code=None, date=None, retry_count=3, pause=0.001,
             else:
                 re = Request(url[src])
                 lines = urlopen(re, timeout=10).read()
-                lines = lines.decode('GBK') 
+                lines = lines.decode('GBK')
                 if len(lines) < 20:
                     return None
                 df = pd.read_table(StringIO(lines), names=ct.TICK_COLUMNS,
-                                   skiprows=[0])      
+                                   skiprows=[0])
         except Exception as e:
             print(e)
         else:
@@ -212,11 +212,11 @@ def get_sina_dd(code=None, date=None, vol=400, retry_count=3, pause=0.001):
             re = Request(ct.SINA_DD % (ct.P_TYPE['http'], ct.DOMAINS['vsf'], ct.PAGES['sinadd'],
                                 symbol, vol, date))
             lines = urlopen(re, timeout=10).read()
-            lines = lines.decode('GBK') 
+            lines = lines.decode('GBK')
             if len(lines) < 100:
                 return None
             df = pd.read_csv(StringIO(lines), names=ct.SINA_DD_COLS,
-                               skiprows=[0])    
+                               skiprows=[0])
             if df is not None:
                 df['code'] = df['code'].map(lambda x: x[2:])
         except Exception as e:
@@ -255,7 +255,7 @@ def get_today_ticks(code=None, retry_count=3, pause=0.001):
             data_str = urlopen(request, timeout=10).read()
             data_str = data_str.decode('GBK')
             data_str = data_str[1:-1]
-            data_str = eval(data_str, type('Dummy', (dict,), 
+            data_str = eval(data_str, type('Dummy', (dict,),
                                            dict(__getitem__ = lambda s, n:n))())
             data_str = json.dumps(data_str)
             data_str = json.loads(data_str)
@@ -280,7 +280,7 @@ def _today_ticks(symbol, tdate, pageNo, retry_count, pause):
             html = lxml.html.parse(ct.TODAY_TICKS_URL % (ct.P_TYPE['http'],
                                                          ct.DOMAINS['vsf'], ct.PAGES['t_ticks'],
                                                          symbol, tdate, pageNo
-                                ))  
+                                ))
             res = html.xpath('//table[@id=\"datatbl\"]/tbody/tr')
             if ct.PY3:
                 sarr = [etree.tostring(node).decode('utf-8') for node in res]
@@ -297,8 +297,8 @@ def _today_ticks(symbol, tdate, pageNo, retry_count, pause):
         else:
             return df
     raise IOError(ct.NETWORK_URL_ERROR_MSG)
-        
-    
+
+
 def get_today_all():
     """
         一次性获取最近一个日交易日所有股票的交易数据
@@ -325,7 +325,7 @@ def get_realtime_quotes(symbols=None):
     Parameters
     ------
         symbols : string, array-like object (list, tuple, Series).
-        
+
     return
     -------
         DataFrame 实时交易数据
@@ -361,8 +361,8 @@ def get_realtime_quotes(symbols=None):
             symbols_list += ct._code_to_symbol(code) + ','
     else:
         symbols_list = ct._code_to_symbol(symbols)
-        
-    symbols_list = symbols_list[:-1] if len(symbols_list) > 8 else symbols_list 
+
+    symbols_list = symbols_list[:-1] if len(symbols_list) > 8 else symbols_list
     request = Request(ct.LIVE_DATA_URL%(ct.P_TYPE['http'], ct.DOMAINS['sinahq'],
                                                 _random(), symbols_list))
     text = urlopen(request,timeout=10).read()
@@ -389,7 +389,7 @@ def get_realtime_quotes(symbols=None):
 
 
 def get_h_data(code, start=None, end=None, autype='qfq',
-               index=False, retry_count=3, pause=0.001, drop_factor=True):
+               index=False, retry_count=3, pause=0.001, drop_factor=True, proxies=[]):
     '''
     获取历史复权数据
     Parameters
@@ -403,7 +403,7 @@ def get_h_data(code, start=None, end=None, autype='qfq',
       autype:string
                   复权类型，qfq-前复权 hfq-后复权 None-不复权，默认为qfq
       retry_count : int, 默认 3
-                 如遇网络等问题重复执行的次数 
+                 如遇网络等问题重复执行的次数
       pause : int, 默认 0
                 重复请求数据过程中暂停的秒数，防止请求间隔时间太短出现的问题
       drop_factor : bool, 默认 True
@@ -419,14 +419,14 @@ def get_h_data(code, start=None, end=None, autype='qfq',
           volume 成交量
           amount 成交金额
     '''
-    
+
     start = du.today_last_year() if start is None else start
     end = du.today() if end is None else end
     qs = du.get_quarts(start, end)
     qt = qs[0]
     ct._write_head()
     data = _parse_fq_data(_get_index_url(index, code, qt), index,
-                          retry_count, pause)
+                          retry_count, pause, proxies=proxies)
     if data is None:
         data = pd.DataFrame()
     if len(qs)>1:
@@ -434,7 +434,7 @@ def get_h_data(code, start=None, end=None, autype='qfq',
             qt = qs[d]
             ct._write_console()
             df = _parse_fq_data(_get_index_url(index, code, qt), index,
-                                retry_count, pause)
+                                retry_count, pause, proxies=proxies)
             if df is None:  # 可能df为空，退出循环
                 break
             else:
@@ -479,7 +479,7 @@ def get_h_data(code, start=None, end=None, autype='qfq',
                         preClose = float(rt['pre_close'])
                     else:
                         preClose = float(rt['price'])
-            
+
             rate = float(frow['factor']) / preClose
             data = data[(data.date >= start) & (data.date <= end)]
             for label in ['open', 'high', 'low', 'close']:
@@ -533,12 +533,18 @@ def _fun_except(x):
         return x
 
 
-def _parse_fq_data(url, index, retry_count, pause):
+def _parse_fq_data(url, index, retry_count, pause, proxies=[]):
+    import random
     for _ in range(retry_count):
+        proxy = random.choice(proxies) if proxies else None
         time.sleep(pause)
         try:
             request = Request(url)
-            text = urlopen(request, timeout=10).read()
+            text = None
+            if not proxy:
+                text = urlopen(request, timeout=10).read()
+            else:
+                text = build_opener(ProxyHandler(proxy)).open(request, timeout=10).read()
             text = text.decode('GBK')
             html = lxml.html.parse(StringIO(text))
             res = html.xpath('//table[@id=\"FundHoldSharesTable\"]')
@@ -603,7 +609,7 @@ def get_index():
     df['change'] = df['change'].astype(float)
     df['amount'] = df['amount'].astype(float)
     return df
- 
+
 
 def _get_index_url(index, code, qt):
     if index:
@@ -616,7 +622,7 @@ def _get_index_url(index, code, qt):
 
 
 def get_k_data(code=None, start='', end='',
-                  ktype='D', autype='qfq', 
+                  ktype='D', autype='qfq',
                   index=False,
                   retry_count=3,
                   pause=0.001):
@@ -635,7 +641,7 @@ def get_k_data(code=None, start='', end='',
       ktype：string
                   数据类型，D=日k线 W=周 M=月 5=5分钟 15=15分钟 30=30分钟 60=60分钟，默认为D
       retry_count : int, 默认 3
-                 如遇网络等问题重复执行的次数 
+                 如遇网络等问题重复执行的次数
       pause : int, 默认 0
                 重复请求数据过程中暂停的秒数，防止请求间隔时间太短出现的问题
     return
@@ -664,7 +670,7 @@ def get_k_data(code=None, start='', end='',
         kline = '' if autype is None else 'fq'
         if (start is None or start == '') & (end is None or end == ''):
             urls = [ct.KLINE_TT_URL%(ct.P_TYPE['http'], ct.DOMAINS['tt'],
-                                    kline, fq, symbol, 
+                                    kline, fq, symbol,
                                     ct.TT_K_TYPE[ktype.upper()], start, end,
                                     fq, _random(17))]
         else:
@@ -674,7 +680,7 @@ def get_k_data(code=None, start='', end='',
                 startdate = str(year) + '-01-01'
                 enddate = str(year+1) + '-12-31'
                 url = ct.KLINE_TT_URL%(ct.P_TYPE['http'], ct.DOMAINS['tt'],
-                                    kline, fq+str(year), symbol, 
+                                    kline, fq+str(year), symbol,
                                     ct.TT_K_TYPE[ktype.upper()], startdate, enddate,
                                     fq, _random(17))
                 urls.append(url)
@@ -688,18 +694,18 @@ def get_k_data(code=None, start='', end='',
         raise TypeError('ktype input error.')
     data = pd.DataFrame()
     for url in urls:
-        data = data.append(_get_k_data(url, dataflag, 
+        data = data.append(_get_k_data(url, dataflag,
                                        symbol, code,
                                        index, ktype,
-                                       retry_count, pause), 
+                                       retry_count, pause),
                            ignore_index=True)
     if ktype not in ct.K_MIN_LABELS:
         if ((start is not None) & (start != '')) & ((end is not None) & (end != '')):
-            if data.empty==False:       
+            if data.empty==False:
                 data = data[(data.date >= start) & (data.date <= end)]
     return data
     raise IOError(ct.NETWORK_URL_ERROR_MSG)
-    
+
 
 def _get_k_data(url, dataflag='',
                 symbol='',
@@ -720,22 +726,22 @@ def _get_k_data(url, dataflag='',
             else:
                 lines = lines.decode('utf-8') if ct.PY3 else lines
                 lines = lines.split('=')[1]
-                reg = re.compile(r',{"nd.*?}') 
-                lines = re.subn(reg, '', lines) 
+                reg = re.compile(r',{"nd.*?}')
+                lines = re.subn(reg, '', lines)
                 js = json.loads(lines[0])
                 dataflag = dataflag if dataflag in list(js['data'][symbol].keys()) else ct.TT_K_TYPE[ktype.upper()]
                 if len(js['data'][symbol][dataflag]) == 0:
                     return None
                 if len(js['data'][symbol][dataflag][0]) == 6:
-                    df = pd.DataFrame(js['data'][symbol][dataflag], 
+                    df = pd.DataFrame(js['data'][symbol][dataflag],
                                   columns = ct.KLINE_TT_COLS_MINS)
                 else:
-                    df = pd.DataFrame(js['data'][symbol][dataflag], 
+                    df = pd.DataFrame(js['data'][symbol][dataflag],
                                   columns = ct.KLINE_TT_COLS)
                 df['code'] = symbol if index else code
                 if ktype in ct.K_MIN_LABELS:
-                    df['date'] = df['date'].map(lambda x: '%s-%s-%s %s:%s'%(x[0:4], x[4:6], 
-                                                                            x[6:8], x[8:10], 
+                    df['date'] = df['date'].map(lambda x: '%s-%s-%s %s:%s'%(x[0:4], x[4:6],
+                                                                            x[6:8], x[8:10],
                                                                             x[10:12]))
                 for col in df.columns[1:6]:
                     df[col] = df[col].astype(float)
@@ -758,15 +764,15 @@ def get_hists(symbols, start=None, end=None,
         return df
     else:
         return None
-  
-  
+
+
 def get_day_all(date=None):
     """
     获取每日收盘行情
     Parameters:
     -------------
     date:交易日期，格式:YYYY-MM-DD
-    
+
     Return:
     -------------
     DataFrame
@@ -790,9 +796,9 @@ def get_day_all(date=None):
                                       'hq' if date is None else wdate), \
                                       dtype={'code':'object'})
     return df
- 
 
-def bar(code, conn=None, start_date=None, end_date=None, freq='D', asset='E', 
+
+def bar(code, conn=None, start_date=None, end_date=None, freq='D', asset='E',
            market='',
            adj = None,
            ma = [],
@@ -816,13 +822,13 @@ def bar(code, conn=None, start_date=None, end_date=None, freq='D', asset='E',
         tor:换手率，默认不返回，返回需指定：factor=['tor']
                     以上两种都需要：factor=['vr', 'tor']
     retry_count:网络重试次数
-    
+
     Return
     ----------
     DataFrame
     code:代码
     open：开盘close/high/low/vol成交量/amount成交额/maN均价/vr量比/tor换手率
-    
+
          期货(asset='X')
     code/open/close/high/low/avg_price：均价  position：持仓量  vol：成交总量
     """
@@ -843,7 +849,7 @@ def bar(code, conn=None, start_date=None, end_date=None, freq='D', asset='E',
                 func = getattr(xapi, ct.ASSET['X'])
             if ktype in ct.KTYPE_LOW_COLS:
                 data = pd.DataFrame()
-                for i in range(100): 
+                for i in range(100):
                     ds = func(ct.KTYPE[ktype], mkcode, code, i * 800, 800)
                     df =  api.to_df(ds)
                     data = data.append(df) if i == 0 else df.append(data,  ignore_index=True)
@@ -852,7 +858,7 @@ def bar(code, conn=None, start_date=None, end_date=None, freq='D', asset='E',
                 data['datetime'] = data['datetime'].apply(lambda x: str(x[0:10]))
             if ktype in ct.KTYPE_ARR:
                 data = pd.DataFrame()
-                for i in range(100): 
+                for i in range(100):
                     ds = func(ct.KTYPE[ktype], mkcode, code, i * 800, 800)
                     df =  api.to_df(ds)
                     data = data.append(df) if i == 0 else df.append(data,  ignore_index=True)
@@ -861,7 +867,7 @@ def bar(code, conn=None, start_date=None, end_date=None, freq='D', asset='E',
             data['datetime'] = pd.to_datetime(data['datetime'])
             data = data.assign(code=str(code)) \
                 .set_index('datetime', drop=True, inplace=False) \
-                .drop(ct.T_DROP_COLS, axis=1)[ None if start_date == '' else start_date : 
+                .drop(ct.T_DROP_COLS, axis=1)[ None if start_date == '' else start_date :
                                               None if end_date == '' else end_date]
             data = data.sort_index(ascending=False)
             if asset in['E', 'INDEX']:
@@ -879,7 +885,7 @@ def bar(code, conn=None, start_date=None, end_date=None, freq='D', asset='E',
             if asset == 'E':
                 if adj is not None:
                     df = factor_adj(code)
-                    if ktype in ct.KTYPE_LOW_COLS: 
+                    if ktype in ct.KTYPE_LOW_COLS:
                         data = data.merge(df, left_index=True, right_index=True)
                         data['adj_factor'] = data['adj_factor'].fillna(method='bfill')
                     else:
@@ -896,14 +902,14 @@ def bar(code, conn=None, start_date=None, end_date=None, freq='D', asset='E',
                 if factors is not None and len(factors) >0 :
                     if 'tor' in factors:
                         df = factor_shares(code)
-                        if ktype in ct.KTYPE_LOW_COLS: 
+                        if ktype in ct.KTYPE_LOW_COLS:
                             data = data.merge(df, left_index=True, right_index=True)
                             data['floats'] = data['floats'].fillna(method='bfill')
                         else:
                             def get_val(day):
                                 return df.ix[day]['floats']
                             data['floats'] = data.index.map(lambda x: get_val(str(x)[0:10]))
-                        data['tor'] = data['vol'] / data['floats'] 
+                        data['tor'] = data['vol'] / data['floats']
                         data['tor'] = data['tor'].map(ct.FORMAT)
                         data['tor'] = data['tor'].astype(float)
                         data = data.drop('floats', axis=1)
@@ -962,7 +968,7 @@ def tick(code, conn=None, date='', asset='E', market='', retry_count = 3):
                              国债预发行         GY 主力期货合约         MA
                               中证指数         ZZ 港股通         GH
     market:市场代码，通过ts.get_markets()获取
-                  
+
     Return
     ----------
     DataFrame
@@ -1005,7 +1011,7 @@ def tick(code, conn=None, date='', asset='E', market='', retry_count = 3):
             else:
                 if mkcode in [31, 71]:
                     if date == today:
-                        data = data.drop(['hour', 'minute', 'nature_name', 'zengcang', 'direction', 
+                        data = data.drop(['hour', 'minute', 'nature_name', 'zengcang', 'direction',
                                         'second', 'nature_mark', 'nature_value'], axis=1)
                     else:
                         data = data.drop(['hour', 'minute', 'nature_name', 'zengcang', 'direction'], axis=1)
@@ -1015,14 +1021,14 @@ def tick(code, conn=None, date='', asset='E', market='', retry_count = 3):
                     data.columns = ['date', 'price', 'vol', 'type']
                 elif mkcode in [28, 29, 30, 47, 60]:
                     if date == today:
-                        data = data.drop(['hour', 'minute', 'nature', 'direction', 
+                        data = data.drop(['hour', 'minute', 'nature', 'direction',
                                             'second', 'nature_mark', 'nature_value'], axis=1)
                     else:
                         data = data.drop(['hour', 'minute', 'nature', 'direction'], axis=1)
                     data.columns = ['date', 'price', 'vol', 'oi_change', 'type']
                 else:
                     data = data.drop(['hour', 'minute', 'nature_name', 'zengcang', 'direction', 'nature'], axis=1)
-            
+
         except Exception as e:
             print(e)
         else:
@@ -1036,7 +1042,7 @@ def quotes(symbols, conn=None, asset='E', market=[], retry_count = 3):
     Parameters
     ------
         symbols : string, array-like object (list, tuple, Series).
-        
+
     return
     -------
         DataFrame 实时快照，5档行情
@@ -1103,10 +1109,10 @@ def reset_instrument(xapi=None):
     """
             重新设置本地证券列表
     """
-    import tushare.util.conns as cs 
+    import tushare.util.conns as cs
     xapi = cs.xapi_x() if xapi is None else xapi
     data=[]
-    for i in range(200): 
+    for i in range(200):
         ds = xapi.get_instrument_info(i * 300, 300)
         data += ds
         if len(ds) < 300:
@@ -1121,7 +1127,7 @@ def get_instrument(xapi=None):
     """
             获取证券列表
     """
-    import tushare.util.conns as cs 
+    import tushare.util.conns as cs
     xapi = cs.xapi_x() if xapi is None else xapi
     if xapi is None:
         print(ct.MSG_NOT_CONNECTED)
@@ -1146,8 +1152,8 @@ def get_markets(xapi=None):
     data = xapi.get_markets()
     data = xapi.to_df(data)
     return data
-    
-    
+
+
 def factor_adj(code):
     df = pd.read_csv(ct.ADJ_FAC_URL%(ct.P_TYPE['http'],
                                              ct.DOMAINS['oss'], code))

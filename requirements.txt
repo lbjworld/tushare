@@ -2,3 +2,5 @@ pandas>=0.18.0
 requests>=2.0.0
 lxml>=3.8.0
 pyquery>=1.2.4
+html5lib==1.0b8
+pytdx>=1.57

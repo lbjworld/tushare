@@ -28,7 +28,7 @@ def _parse_page(page_doc, http_type='http'):
         port = proxy_item(port_col_selector).text()
         pro_type = proxy_item(type_col_selector).text()
         if pro_type and pro_type.lower() == http_type:
-            _proxies.append({pro_type.lower(): '{ip}:{port}'.format(ip=ip, port=port)})
+            _proxies.append({unicode(pro_type.lower()): '{ip}:{port}'.format(ip=ip, port=port)})
     return _proxies
 
 
@@ -40,7 +40,7 @@ def _get_proxy_page(page_num=5, timeout=10):
             url = PROXY_SITE_URL.format(proxy_type=proxy_type, page=page)
             try:
                 r = requests.get(url, timeout=timeout)
-                doc = pq(r.content())
+                doc = pq(r.text)
             except Exception as e:
                 logger.error('get proxy page error: {e}'.format(e=e))
                 continue
@@ -48,14 +48,14 @@ def _get_proxy_page(page_num=5, timeout=10):
     return _proxies
 
 
-def _valid_proxy(proxy, target_url='http://www.baidu.com'):
+def _valid_proxy(proxy, target_url='https://www.baidu.com'):
     try:
         r = requests.get(target_url, timeout=0.5, proxies=proxy)
-        if r.status_code != 200:
-            return False
-    except:
+        if r.status_code / 100 == 2 or r.status_code / 100 == 3:
+            return True
+    except Exception as e:
         return False
-    return True
+    return False
 
 
 def get_proxies(count=10):
